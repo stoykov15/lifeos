@@ -1,7 +1,8 @@
 import axios from "axios";
 
-const API_BASE = "http://localhost:8000/api";  // Change this for production
+const API_BASE = "http://localhost:8000/api";
 
+// Setup Axios
 const api = axios.create({
   baseURL: API_BASE,
   headers: {
@@ -9,7 +10,16 @@ const api = axios.create({
   },
 });
 
-// Optional: handle errors globally
+// Add Authorization header if token exists
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Optional: Global error handler
 api.interceptors.response.use(
   (response) => response,
   (error) => {

@@ -15,6 +15,10 @@ users = Table(
     Column("fixed_expenses", JSON, default={}),
     Column("currency", String, default="USD"),
     Column("dark_mode", Boolean, default=False),
+    Column("goal", String, nullable=True),
+    Column("setup_complete", Boolean, default = False),
+    Column("first_name", String, nullable=True),
+    Column("last_name", String, nullable=True),
 )
 
 # ✅ TASKS

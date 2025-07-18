@@ -1,137 +1,135 @@
 import { useState } from "react";
-import API from "../lib/api";
-import { setUser } from "../lib/user";
 import { useNavigate } from "react-router-dom";
+import api from "../lib/api";
+import { fetchProfile } from "../lib/auth";
 
-export default function UserSetup() {
-  const [email, setEmail] = useState("");
-  const [monthlyIncome, setMonthlyIncome] = useState("");
-  const [currency, setCurrency] = useState("USD");
-  const [darkMode, setDarkMode] = useState(false);
-  const [fixedExpenses, setFixedExpenses] = useState([{ name: "", amount: "" }]);
+export default function UserSetup({ onComplete }) {
+  const [step, setStep] = useState(1);
+  const [income, setIncome] = useState("");
+  const [goal, setGoal] = useState("");
+  const [categories, setCategories] = useState("");
+  const [progress, setProgress] = useState(33);
 
-  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const addExpenseField = () => {
-    setFixedExpenses([...fixedExpenses, { name: "", amount: "" }]);
+  const nextStep = () => {
+    setStep((prev) => prev + 1);
+    setProgress((prev) => Math.min(prev + 33, 100));
   };
 
-  const handleExpenseChange = (i, field, value) => {
-    const copy = [...fixedExpenses];
-    copy[i][field] = value;
-    setFixedExpenses(copy);
+  const prevStep = () => {
+    setStep((prev) => prev - 1);
+    setProgress((prev) => Math.max(prev - 33, 0));
   };
 
   const handleSubmit = async () => {
-    if (!email || !monthlyIncome) {
-      setError("Please fill in required fields.");
-      return;
-    }
-
-    const cleanedExpenses = {};
-    fixedExpenses.forEach((e) => {
-      if (e.name && e.amount) {
-        cleanedExpenses[e.name] = parseFloat(e.amount);
-      }
-    });
-
     try {
-      const res = await API.post("/users", {
-        email,
-        password: "placeholder", // Can be ignored for now
-        monthly_income: parseFloat(monthlyIncome),
-        fixed_expenses: cleanedExpenses,
-        currency,
-        dark_mode: darkMode
+      await api.put("/users/setup", {
+        monthly_income: parseFloat(income) || 0,
+        goal: goal || "",
+        fixed_expenses: categories ? { categories } : {},
       });
 
-      setUser(res.data);
-      navigate("/");
-    } catch (err) {
-      setError("Failed to create user.");
+      const updatedProfile = await fetchProfile();
+      onComplete(updatedProfile); // Update user in App
+      navigate("/"); // Redirect to dashboard
+    } catch (error) {
+      console.error("Setup error:", error);
+      alert("Something went wrong with setup");
     }
   };
 
   return (
-    <div className="max-w-xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">👤 Set Up Your Profile</h1>
+    <div className="max-w-2xl mx-auto p-6">
+      {/* Progress bar */}
+      <div className="w-full bg-gray-200 h-2 rounded overflow-hidden mb-6">
+        <div
+          className="bg-blue-600 h-full transition-all duration-300"
+          style={{ width: `${progress}%` }}
+        ></div>
+      </div>
 
-      <div className="space-y-4 bg-white p-6 rounded shadow">
-        <input
-          type="email"
-          className="border p-2 w-full"
-          placeholder="Your email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
-        <input
-          type="number"
-          className="border p-2 w-full"
-          placeholder="Monthly income"
-          value={monthlyIncome}
-          onChange={(e) => setMonthlyIncome(e.target.value)}
-        />
-
-        <select
-          className="border p-2 w-full"
-          value={currency}
-          onChange={(e) => setCurrency(e.target.value)}
-        >
-          <option value="USD">USD $</option>
-          <option value="EUR">EUR €</option>
-          <option value="GBP">GBP £</option>
-          <option value="BGN">BGN лв</option>
-        </select>
-
-        {/* Fixed Expenses */}
-        <div className="space-y-2">
-          <p className="text-sm font-medium">Fixed Expenses (optional)</p>
-          {fixedExpenses.map((e, i) => (
-            <div key={i} className="flex gap-2">
-              <input
-                className="border p-2 flex-1"
-                placeholder="e.g. Rent"
-                value={e.name}
-                onChange={(ev) => handleExpenseChange(i, "name", ev.target.value)}
-              />
-              <input
-                type="number"
-                className="border p-2 w-24"
-                placeholder="Amount"
-                value={e.amount}
-                onChange={(ev) => handleExpenseChange(i, "amount", ev.target.value)}
-              />
-            </div>
-          ))}
+      {/* Step 1 */}
+      {step === 1 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold">Step 1: Monthly Income</h2>
+          <input
+            type="number"
+            value={income}
+            onChange={(e) => setIncome(e.target.value)}
+            placeholder="Enter your income"
+            className="w-full border p-2 rounded"
+          />
           <button
-            onClick={addExpenseField}
-            className="text-sm text-blue-600 underline"
+            onClick={nextStep}
+            className="bg-blue-600 text-white py-2 px-4 rounded"
           >
-            + Add more
+            Next
           </button>
         </div>
+      )}
 
-        {/* Dark Mode Toggle */}
-        <label className="flex items-center gap-2 text-sm">
+      {/* Step 2 */}
+      {step === 2 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold">Step 2: Financial Goal</h2>
+          <select
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+            className="w-full border p-2 rounded"
+          >
+            <option value="">Choose a goal</option>
+            <option value="Save for house">Save for house</option>
+            <option value="Pay off debt">Pay off debt</option>
+            <option value="Build emergency fund">Build emergency fund</option>
+            <option value="Other">Other</option>
+          </select>
+
+          <div className="flex justify-between">
+            <button
+              onClick={prevStep}
+              className="bg-gray-400 text-white py-2 px-4 rounded"
+            >
+              Back
+            </button>
+            <button
+              onClick={nextStep}
+              className="bg-blue-600 text-white py-2 px-4 rounded"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3 */}
+      {step === 3 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold">Step 3: Categories (optional)</h2>
           <input
-            type="checkbox"
-            checked={darkMode}
-            onChange={(e) => setDarkMode(e.target.checked)}
+            type="text"
+            value={categories}
+            onChange={(e) => setCategories(e.target.value)}
+            placeholder="E.g. Rent, Food, Travel"
+            className="w-full border p-2 rounded"
           />
-          Enable Dark Mode
-        </label>
 
-        <button
-          className="bg-blue-600 text-white w-full py-2 rounded"
-          onClick={handleSubmit}
-        >
-          Save Profile
-        </button>
-
-        {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
-      </div>
+          <div className="flex justify-between">
+            <button
+              onClick={prevStep}
+              className="bg-gray-400 text-white py-2 px-4 rounded"
+            >
+              Back
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="bg-green-600 text-white py-2 px-4 rounded"
+            >
+              Finish Setup
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
